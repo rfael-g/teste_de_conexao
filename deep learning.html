@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Deep Learning em JavaScript Puro</title>
+  <style>
+    body { font-family: serif, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
+    .card { background: #1e293b; padding: 25px; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+    h2 { margin-top: 0; color: #38bdf8; }
+    button { background: #0284c7; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+    button:hover { background: #0369a1; }
+    input { width: 100%; padding: 10px; background: #334155; border: 1px solid #475569; color: #fff; border-radius: 6px; margin-top: 5px; box-sizing: border-box; }
+    .box { margin-top: 15px; background: #0f172a; padding: 15px; border-radius: 6px; }
+    .arquitetura { font-size: 0.85em; color: #94a3b8; line-height: 1.4; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Rede Neural Profunda (Deep Learning)</h2>
+  <div class="arquitetura">
+    <strong>Arquitetura da Rede:</strong><br>
+    - Camada de Entrada: 2 neurônios<br>
+    - Camada Oculta: 3 neurônios (Deep Layer)<br>
+    - Camada de Saída: 1 neurônio
+  </div>
+  
+  <button onclick="treinarRede()">1. Treinar Rede (Problema XOR)</button>
+
+  <div class="box">
+    <label>Digite 2 valores (0 ou 1) separados por espaço:</label>
+    <input type="text" id="entradaUsuario" placeholder="Ex: 1 0">
+    <button onclick="testarRede()">2. Testar IA</button>
+  </div>
+
+  <div id="status" class="box">Status: Aguardando treinamento...</div>
+</div>
+
+<script>
+// --- CLASSE DA REDE NEURAL PROFUNDA ---
+class RedeNeuralProfunda {
+  constructor(tamanhoEntrada, tamanhoOculto, tamanhoSaida) {
+    this.tamanhoEntrada = tamanhoEntrada;
+    this.tamanhoOculto = tamanhoOculto;
+    this.tamanhoSaida = tamanhoSaida;
+
+    // Inicialização aleatória dos pesos e bias (vieses)
+    this.pesosOcultos = this.matrizAleatoria(tamanhoEntrada, tamanhoOculto);
+    this.biasOculto = Array(tamanhoOculto).fill(0).map(() => Math.random() * 2 - 1);
+
+    this.pesosSaida = this.matrizAleatoria(tamanhoOculto, tamanhoSaida);
+    this.biasSaida = Array(tamanhoSaida).fill(0).map(() => Math.random() * 2 - 1);
+  }
+
+  matrizAleatoria(linhas, cols) {
+    return Array(linhas).fill(0).map(() => Array(cols).fill(0).map(() => Math.random() * 2 - 1));
+  }
+
+  sigmoide(x) { return 1 / (1 + Math.exp(-x)); }
+  derivadaSigmoide(x) { return x * (1 - x); }
+
+  // 1. FORWARD PASS (Passagem Direta)
+  pensar(entrada) {
+    // Camada Oculta
+    this.saidaOculta = [];
+    for (let j = 0; j < this.tamanhoOculto; j++) {
+      let soma = this.biasOculto[j];
+      for (let i = 0; i < this.tamanhoEntrada; i++) {
+        soma += entrada[i] * this.pesosOcultos[i][j];
+      }
+      this.saidaOculta.push(this.sigmoide(soma));
+    }
+
+    // Camada de Saída
+    this.saidaFinal = [];
+    for (let k = 0; k < this.tamanhoSaida; k++) {
+      let soma = this.biasSaida[k];
+      for (let j = 0; j < this.tamanhoOculto; j++) {
+        soma += this.saidaOculta[j] * this.pesosSaida[j][k];
+      }
+      this.saidaFinal.push(this.sigmoide(soma));
+    }
+
+    return this.saidaFinal;
+  }
+
+  // 2. BACKPROPAGATION (Retropropagação do Erro)
+  treinar(datasetEntradas, datasetSaidas, epocas, taxaAprendizado) {
+    for (let e = 0; e < epocas; e++) {
+      for (let index = 0; index < datasetEntradas.length; index++) {
+        const entrada = datasetEntradas[index];
+        const alvo = datasetSaidas[index];
+
+        // 1. Calcula a previsão
+        const previsao = this.pensar(entrada);
+
+        // 2. Erro da Camada de Saída
+        const gradienteSaida = [];
+        for (let k = 0; k < this.tamanhoSaida; k++) {
+          const erro = alvo[k] - previsao[k];
+          gradienteSaida.push(erro * this.derivadaSigmoide(previsao[k]));
+        }
+
+        // 3. Erro da Camada Oculta
+        const gradienteOculto = [];
+        for (let j = 0; j < this.tamanhoOculto; j++) {
+          let erroOculto = 0;
+          for (let k = 0; k < this.tamanhoSaida; k++) {
+            erroOculto += gradienteSaida[k] * this.pesosSaida[j][k];
+          }
+          gradienteOculto.push(erroOculto * this.derivadaSigmoide(this.saidaOculta[j]));
+        }
+
+        // 4. Atualiza Pesos e Bias da Saída
+        for (let j = 0; j < this.tamanhoOculto; j++) {
+          for (let k = 0; k < this.tamanhoSaida; k++) {
+            this.pesosSaida[j][k] += this.saidaOculta[j] * gradienteSaida[k] * taxaAprendizado;
+          }
+        }
+        for (let k = 0; k < this.tamanhoSaida; k++) {
+          this.biasSaida[k] += gradienteSaida[k] * taxaAprendizado;
+        }
+
+        // 5. Atualiza Pesos e Bias da Camada Oculta
+        for (let i = 0; i < this.tamanhoEntrada; i++) {
+          for (let j = 0; j < this.tamanhoOculto; j++) {
+            this.pesosOcultos[i][j] += entrada[i] * gradienteOculto[j] * taxaAprendizado;
+          }
+        }
+        for (let j = 0; j < this.tamanhoOculto; j++) {
+          this.biasOculto[j] += gradienteOculto[j] * taxaAprendizado;
+        }
+      }
+    }
+  }
+}
+
+// --- INTERAÇÃO COM O HTML ---
+// Instância: 2 Entradas, 3 Neurônios Ocultos, 1 Saída
+const rede = new RedeNeuralProfunda(2, 3, 1);
+let redeTreinada = false;
+
+function treinarRede() {
+  // Problema Lógico XOR (Impossível de resolver com apenas 1 neurônio isolado)
+  const entradas = [[0, 0], [0, 1], [1, 0], [1, 1]];
+  const saidas = [[0], [1], [1], [0]];
+
+  document.getElementById('status').innerText = "Treinando a rede (50.000 iterações)...";
+
+  setTimeout(() => {
+    rede.treinar(entradas, saidas, 50000, 0.1);
+    redeTreinada = true;
+    document.getElementById('status').innerHTML = "<strong>Status:</strong> Treinamento concluído!";
+  }, 100);
+}
+
+function testarRede() {
+  if (!redeTreinada) {
+    alert("Treine a rede primeiro!");
+    return;
+  }
+
+  const inputVal = document.getElementById('entradaUsuario').value.trim();
+  const dados = inputVal.split(' ').map(Number);
+
+  if (dados.length !== 2 || dados.some(isNaN)) {
+    alert("Por favor, digite exatamente 2 números (0 ou 1) separados por espaço.");
+    return;
+  }
+
+  const saida = rede.pensar(dados)[0];
+  const decisao = saida > 0.5 ? 1 : 0;
+  const confianca = (saida * 100).toFixed(2);
+
+  document.getElementById('status').innerHTML = `
+    <strong>Entrada:</strong> [${dados.join(', ')}]<br>
+    <strong>Decisão da IA:</strong> ${decisao}<br>
+    <strong>Confiança:</strong> ${confianca}%
+  `;
+}
+</script>
+
+</body>
+</html>
